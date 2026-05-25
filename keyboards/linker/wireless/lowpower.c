@@ -6,7 +6,7 @@
 #include "usb_main.h"
 
 #ifndef LPWR_TIMEOUT
-#    define LPWR_TIMEOUT 300000 // 5min
+#    define LPWR_TIMEOUT 0 // 5min
 #endif
 
 #ifndef LPWR_PRESLEEP_DELAY
@@ -14,11 +14,23 @@
 #endif
 
 #ifndef LPWR_STOP_DELAY
-#    define LPWR_STOP_DELAY 200
+#    define LPWR_STOP_DELAY 50
 #endif
 
 #ifndef LPWR_WAKEUP_DELAY
-#    define LPWR_WAKEUP_DELAY 200
+#    define LPWR_WAKEUP_DELAY 50
+#endif
+
+#ifdef TP_UART 
+    #include "touch.h"
+#endif
+
+#ifdef GPIO_UART_ENABLE
+#include "iprint.h"
+#include <stdarg.h>
+#define DEBUG(fmt, ...) iprintf(fmt, ##__VA_ARGS__)
+#else
+#define DEBUG(fmt, ...)
 #endif
 
 static lpwr_state_t lpwr_state       = LPWR_NORMAL;
@@ -257,11 +269,30 @@ void lpwr_stop_cb(void) {
 
     lpwr_stop_hook_pre();
     lpwr_enter_stop();
-
+    DEBUG("lpwr_get_sleep_wakeupcd = %d\r\n",lpwr_get_sleep_wakeupcd());
     switch (lpwr_get_sleep_wakeupcd()) {
         case LPWR_WAKEUP_UART: {
             lpwr_set_state(LPWR_STOP);
         } break;
+#ifdef TP_UART 
+        case LPWR_WAKEUP_TP_PAD: {
+            // uint8_t data[3];
+            // touch_drivers_init(9600);
+            // if (touch_available()) touch_receive(data,3); 
+            // DEBUG("data[0] = %d %d %dr\n",data[0],data[1],data[2]);
+            // if (data[0] == 0x66 && data[2] != 0x32 && data[2] == 0x65) {
+                // lpwr_set_state(LPWR_WAKEUP); 
+            // }
+            // else{
+                // lpwr_set_state(LPWR_STOP);
+            // }
+
+            // if (wireless_get_current_devs() != DEVS_USB && *md_getp_state() == MD_STATE_CONNECTED){
+                lpwr_set_state(LPWR_WAKEUP); 
+            // }
+           
+        } break;
+#endif       
         default: {
             lpwr_set_state(LPWR_WAKEUP);
         } break;
@@ -276,6 +307,11 @@ void lpwr_wakeup_hook(void) {}
 void lpwr_wakeup_cb(void) __attribute__((weak));
 void lpwr_wakeup_cb(void) {
 
+    // if ((lpwr_get_sleep_wakeupcd() == LPWR_WAKEUP_TP_PAD) && (wireless_get_current_devs() != DEVS_USB) && (*md_getp_state() != MD_STATE_CONNECTED)){
+    //     lpwr_set_state(LPWR_STOP); 
+    //     return;
+    // }
+
     if (rgb_enable_bak) {
 #if defined(RGB_MATRIX_ENABLE)
         rgb_matrix_enable_noeeprom();
@@ -288,6 +324,8 @@ void lpwr_wakeup_cb(void) {
     lpwr_wakeup_hook();
 
     last_matrix_activity_trigger();
+    extern matrix_row_t matrix_previous[MATRIX_ROWS];
+    memset(matrix_previous,0,sizeof(matrix_previous));
 }
 
 void lpwr_task(void) __attribute__((weak));
@@ -296,12 +334,14 @@ void lpwr_task(void) {
     switch (lpwr_get_state()) {
         case LPWR_NORMAL: {
             if (lpwr_is_allow_timeout()) {
+                DEBUG("lpwr_get_state = LPWR_NORMAL\r\n");
                 lpwr_update_timestamp();
                 lpwr_set_state(LPWR_PRESLEEP);
             }
         } break;
         case LPWR_PRESLEEP: {
             if (lpwr_is_allow_presleep()) {
+                DEBUG("lpwr_get_state = LPWR_PRESLEEP\r\n");
                 lpwr_presleep_cb();
                 lpwr_update_timestamp();
                 lpwr_set_state(LPWR_STOP);
@@ -309,15 +349,18 @@ void lpwr_task(void) {
         } break;
         case LPWR_STOP: {
             if (lpwr_is_allow_stop()) {
+                DEBUG("lpwr_get_state = LPWR_STOP\r\n");
                 lpwr_update_timestamp();
                 lpwr_stop_cb();
             }
         } break;
         case LPWR_WAKEUP: {
             if (lpwr_is_allow_wakeup()) {
+                DEBUG("lpwr_get_state = LPWR_WAKEUP\r\n");
                 lpwr_wakeup_cb();
                 lpwr_update_timestamp();
                 lpwr_set_state(LPWR_NORMAL);
+                manual_timeout = false;
             }
         } break;
         default:

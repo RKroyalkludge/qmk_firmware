@@ -48,7 +48,7 @@ bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool 
         debouncing_time = timer_read_fast();
     } 
 #ifdef HS_DEBOUNCE    
-    else if (debouncing && timer_elapsed_fast(debouncing_time) >= DEBOUNCE) {
+    else if (debouncing && timer_elapsed_fast(debouncing_time) >= hs_deb) {
         size_t matrix_size = num_rows * sizeof(matrix_row_t);
         if (memcmp(cooked, raw, matrix_size) != 0) {
             memcpy(cooked, raw, matrix_size);

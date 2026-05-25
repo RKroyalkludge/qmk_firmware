@@ -5,16 +5,16 @@
 #include "module.h"
 #include "usb_main.h"
 #include "transport.h"
+#include "wireless.h"
 
 #ifndef USB_POWER_DOWN_DELAY
-#    define USB_POWER_DOWN_DELAY 7000
+#    define USB_POWER_DOWN_DELAY 10000
 #endif
 
 extern host_driver_t chibios_driver;
 extern host_driver_t wireless_driver;
 
 static transport_t transport = TRANSPORT_USB;
-bool temp;
 
 void wls_transport_enable(bool enable) __attribute__((weak));
 void wls_transport_enable(bool enable) {
@@ -96,7 +96,7 @@ transport_t get_transport(void) {
 }
 uint32_t suspend_timer = 0x00;
 void usb_remote_wakeup(void) {
-
+    if (wireless_get_current_devs() == DEVS_USB){
 #ifdef USB_REMOTE_USE_QMK
     if (USB_DRIVER.state == USB_SUSPENDED) {
         dprintln("suspending keyboard");
@@ -120,20 +120,25 @@ void usb_remote_wakeup(void) {
         /* Woken up */
     }
 #else
-    
     if ((USB_DRIVER.state == USB_SUSPENDED)) {
         if (!suspend_timer) suspend_timer = sync_timer_read32();
+        extern uint32_t hs_suspend_timer;
+        hs_suspend_timer = timer_read32();
         if (sync_timer_elapsed32(suspend_timer) >= USB_POWER_DOWN_DELAY) {
             suspend_timer = 0x00;
-            extern void lpwr_set_timeout_manual(bool enable);
-            temp = true;
-            // suspend_power_down();
-            lpwr_set_timeout_manual(true);
+            extern bool charging_state;
+            if (charging_state)
+                suspend_power_down();
+            else 
+                lpwr_set_timeout_manual(true);
         }
     } else {
         suspend_timer = 0x00;
     }
 #endif
+    } else {
+        suspend_timer = 0x00;
+    }
 }
 
 #ifndef USB_REMOTE_USE_QMK
@@ -154,6 +159,9 @@ void usb_remote_host(void) {
         }
 #    if !defined(USB_REMOTE_USE_QMK) && USB_POWER_DOWN_DELAY
         suspend_wakeup_init();
+        clear_keyboard();
+        extern matrix_row_t matrix_previous[MATRIX_ROWS];
+        memset(matrix_previous, 0, sizeof(matrix_previous));
 #    endif
     }
 }

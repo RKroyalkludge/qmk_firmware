@@ -10,9 +10,14 @@
 #endif
 
 static uint8_t wls_devs = DEVS_USB;
-bool im_test_rate_flag;
 
 void last_matrix_activity_trigger(void);
+
+static bool wireless_nkro_has_key(const report_nkro_t *report, uint8_t usageid) {
+    uint8_t idx = usageid >> 3;
+
+    return idx < NKRO_REPORT_BITS && (report->bits[idx] & (0x01 << (usageid & 0x07)));
+}
 
 uint8_t wireless_keyboard_leds(void);
 void wireless_send_keyboard(report_keyboard_t *report);
@@ -81,23 +86,11 @@ void wireless_send_nkro(report_nkro_t *report) {
             key_count += __builtin_popcount(temp_report_nkro.bits[i]);
         }
 
-        // find key up and del it.
-        for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS && temp_report_keyboard.keys[i]; i++) {
-            uint8_t usageid = 0x00;
-            uint8_t n;
+        // Find key up without consuming bits from the current NKRO report.
+        for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS; i++) {
+            uint8_t usageid = temp_report_keyboard.keys[i];
 
-            for (uint8_t c = 0; c < key_count; c++) {
-                for (n = 0; n < NKRO_REPORT_BITS && !temp_report_nkro.bits[n]; n++) {}
-                usageid = (n << 3) | biton(temp_report_nkro.bits[n]);
-#ifdef NKRO_ENABLE
-                del_key_bit(&temp_report_nkro, usageid);
-#endif
-                if (usageid == temp_report_keyboard.keys[i]) {
-                    break;
-                }
-            }
-
-            if (usageid != temp_report_keyboard.keys[i]) {
+            if (usageid && !wireless_nkro_has_key(&temp_report_nkro, usageid)) {
                 temp_report_keyboard.keys[i] = 0x00;
             }
         }
@@ -115,9 +108,7 @@ void wireless_send_nkro(report_nkro_t *report) {
 
             for (n = 0; n < NKRO_REPORT_BITS && !temp_report_nkro.bits[n]; n++) {}
             usageid = (n << 3) | biton(temp_report_nkro.bits[n]);
-#ifdef NKRO_ENABLE
             del_key_bit(&temp_report_nkro, usageid);
-#endif
 
             for (idx = 0; idx < KEYBOARD_REPORT_KEYS; idx++) {
                 if (temp_report_keyboard.keys[idx] == usageid) {
@@ -137,9 +128,9 @@ void wireless_send_nkro(report_nkro_t *report) {
         memset(&temp_report_keyboard, 0, sizeof(temp_report_keyboard));
     }
 
-    // wireless_driver.send_keyboard(&temp_report_keyboard);
     while(smsg_is_busy()) wireless_task();
     host_keyboard_send(&temp_report_keyboard);
+    // wireless_driver.send_keyboard(&temp_report_keyboard);
     md_send_nkro(wls_report_nkro);
 }
 
@@ -301,6 +292,7 @@ void wireless_task(void) {
 }
 
 void housekeeping_task_kb(void) {
+    extern bool im_test_rate_flag;
     if (wireless_get_current_devs() == DEVS_USB && im_test_rate_flag) usb_mode_test_report_task();
     wireless_task();
 }

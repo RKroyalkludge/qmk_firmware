@@ -456,10 +456,10 @@ void keyboard_init(void) {
 #ifdef STENO_ENABLE_ALL
     steno_init();
 #endif
-#if defined(NKRO_ENABLE) && defined(FORCE_NKRO)
-    keymap_config.nkro = 1;
-    eeconfig_update_keymap(keymap_config.raw);
-#endif
+// #if defined(NKRO_ENABLE) && defined(FORCE_NKRO)
+//     keymap_config.nkro = 1;
+//     eeconfig_update_keymap(keymap_config.raw);
+// #endif
 #ifdef DIP_SWITCH_ENABLE
     dip_switch_init();
 #endif
@@ -657,7 +657,7 @@ void quantum_task(void) {
     secure_task();
 #endif
 }
-
+bool hs_rate_test_flag = false;
 /** \brief Main task that is repeatedly called as fast as possible. */
 void keyboard_task(void) {
     __attribute__((unused)) bool activity_has_occurred = false;
@@ -680,7 +680,10 @@ void keyboard_task(void) {
     led_matrix_task();
 #endif
 #ifdef RGB_MATRIX_ENABLE
-    rgb_matrix_task();
+    if (!hs_rate_test_flag) {
+        rgb_matrix_task();
+    } 
+    // rgb_matrix_task();
 #endif
 
 #if defined(BACKLIGHT_ENABLE)

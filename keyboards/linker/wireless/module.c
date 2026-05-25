@@ -340,6 +340,15 @@ void md_send_consumer(uint8_t *data) {
     smsg_push(sdata, sizeof(sdata));
 }
 
+void md_send_devctrl_bat(uint8_t cmd) {
+    uint8_t sdata[3] = {0x00};
+
+    sdata[0] = MD_SND_CMD_DEVCTRL_BAT;
+    memcpy(&sdata[1], &cmd, sizeof(sdata) - 2);
+    md_calc_check_sum(sdata, sizeof(sdata) - 1);
+    smsg_push(sdata, sizeof(sdata));
+}
+
 void md_send_system(uint8_t *data) {
     uint8_t sdata[MD_SND_CMD_SYSTEM_LEN + 2] = {0x00};
 
@@ -392,15 +401,6 @@ void md_send_devctrl(uint8_t cmd) {
     smsg_push(sdata, sizeof(sdata));
 }
 
-void md_send_devctrl_bat(uint8_t cmd) {
-    uint8_t sdata[3] = {0x00};
-
-    sdata[0] = MD_SND_CMD_DEVCTRL_BAT;
-    memcpy(&sdata[1], &cmd, sizeof(sdata) - 2);
-    md_calc_check_sum(sdata, sizeof(sdata) - 1);
-    smsg_push(sdata, sizeof(sdata));
-}
-
 void md_rf_send_carrier(uint8_t channel, uint8_t tx_power, uint8_t phy) {
     uint8_t sdata[5] = {0x00};
 
@@ -408,8 +408,8 @@ void md_rf_send_carrier(uint8_t channel, uint8_t tx_power, uint8_t phy) {
     sdata[1] = channel;
     sdata[2] = tx_power;
     sdata[3] = phy;
-    // md_calc_check_sum(sdata, sizeof(sdata) - 1);
-    sdata[4] = sdata[0] + sdata[1] - sdata[3];
+    md_calc_check_sum(sdata, sizeof(sdata) - 1);
+    // sdata[4] = sdata[0] + sdata[1] - sdata[3];
     smsg_push(sdata, sizeof(sdata));
 }
 

@@ -121,6 +121,7 @@ static void update_debounce_counters(uint8_t num_rows, uint8_t elapsed_time) {
 }
 
 // upload from raw_matrix to final matrix;
+1
 static void transfer_matrix_values(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows) {
     matrix_need_update                   = false;
     debounce_counter_t *debounce_pointer = debounce_counters;
