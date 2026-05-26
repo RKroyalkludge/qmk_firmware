@@ -64,6 +64,7 @@ bool hs_reset_flag           = false;
 static uint32_t hs_reset_time = 0;
 uint8_t test_color_cnt       = 0;
 static bool shifted          = false;
+uint32_t hs_suspend_timer    = 0;
 bool hs_frequency_test;
 bool lower_sleep = false;
 bool no_record_fg;
